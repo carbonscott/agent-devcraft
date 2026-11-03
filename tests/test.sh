@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+INSTALL="$REPO_ROOT/install.sh"
+UNINSTALL="$REPO_ROOT/uninstall.sh"
+
+SKILLS=()
+for f in "$REPO_ROOT"/*/SKILL.md; do
+  SKILLS+=("$(basename "$(dirname "$f")")")
+done
+N=${#SKILLS[@]}
+[ "$N" -gt 0 ] || { echo "FAIL: no skills found" >&2; exit 1; }
+
+TMPROOT="$(mktemp -d)"
+trap 'rm -rf "$TMPROOT"' EXIT
+
+pass() { echo "PASS: $1"; }
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+fresh_home() {
+  local d
+  d="$(mktemp -d -p "$TMPROOT")"
+  echo "$d"
+}
+
+# ---------- Test 1: default install creates one symlink per skill ----------
+H="$(fresh_home)"
+HOME="$H" "$INSTALL" >/dev/null
+target="$H/.claude/skills"
+for s in "${SKILLS[@]}"; do
+  [ -L "$target/$s" ] || fail "default install: $s is not a symlink"
+  resolved="$(readlink -f "$target/$s")"
+  expected="$(readlink -f "$REPO_ROOT/$s")"
+  [ "$resolved" = "$expected" ] || fail "default install: $s resolves to $resolved, expected $expected"
+done
+count=$(find "$target" -mindepth 1 -maxdepth 1 -type l | wc -l)
+[ "$count" -eq "$N" ] || fail "default install: found $count symlinks, expected $N"
+pass "default install creates one symlink per skill"
+
+# ---------- Test 2: collision refusal ----------
+if HOME="$H" "$INSTALL" >/dev/null 2>&1; then
+  fail "second install should have failed but exited 0"
+fi
+# verify nothing was disturbed: still one symlink per skill, no extras
+count=$(find "$target" -mindepth 1 -maxdepth 1 | wc -l)
+[ "$count" -eq "$N" ] || fail "collision refusal: target has $count entries, expected $N"
+pass "collision refusal"
+
+# ---------- Test 3: --copy install ----------
+H="$(fresh_home)"
+HOME="$H" "$INSTALL" --copy >/dev/null
+target="$H/.claude/skills"
+for s in "${SKILLS[@]}"; do
+  [ -d "$target/$s" ] || fail "--copy install: $s missing"
+  [ -L "$target/$s" ] && fail "--copy install: $s is a symlink, expected real dir"
+  [ -f "$target/$s/SKILL.md" ] || fail "--copy install: $s/SKILL.md missing"
+done
+pass "--copy install produces real directories"
+
+# ---------- Test 4: --project install ----------
+H="$(fresh_home)"
+WD="$(mktemp -d -p "$TMPROOT")"
+( cd "$WD" && HOME="$H" "$INSTALL" --project >/dev/null )
+target="$WD/.claude/skills"
+for s in "${SKILLS[@]}"; do
+  [ -L "$target/$s" ] || fail "--project install: $s is not a symlink at $target"
+done
+[ ! -d "$H/.claude/skills" ] || fail "--project install: should not have created $H/.claude/skills"
+pass "--project install lands in cwd"
+
+# ---------- Test 5: uninstall removes symlinks ----------
+H="$(fresh_home)"
+HOME="$H" "$INSTALL" >/dev/null
+HOME="$H" "$UNINSTALL" >/dev/null
+target="$H/.claude/skills"
+for s in "${SKILLS[@]}"; do
+  [ ! -e "$target/$s" ] && [ ! -L "$target/$s" ] || fail "uninstall: $s still present"
+done
+# repo dirs untouched
+for s in "${SKILLS[@]}"; do
+  [ -d "$REPO_ROOT/$s" ] || fail "uninstall: repo dir $s was clobbered"
+  [ -f "$REPO_ROOT/$s/SKILL.md" ] || fail "uninstall: $s/SKILL.md was clobbered"
+done
+pass "uninstall removes symlinks, repo intact"
+
+# ---------- Test 6: uninstall preserves --copy installs ----------
+H="$(fresh_home)"
+HOME="$H" "$INSTALL" --copy >/dev/null
+HOME="$H" "$UNINSTALL" >/dev/null
+target="$H/.claude/skills"
+for s in "${SKILLS[@]}"; do
+  [ -d "$target/$s" ] || fail "uninstall --copy: $s should have been preserved"
+  [ -f "$target/$s/SKILL.md" ] || fail "uninstall --copy: $s/SKILL.md missing"
+done
+pass "uninstall preserves --copy installs"
+
+# ---------- Test 7: install -> uninstall -> install cycle ----------
+H="$(fresh_home)"
+HOME="$H" "$INSTALL" >/dev/null
+HOME="$H" "$UNINSTALL" >/dev/null
+HOME="$H" "$INSTALL" >/dev/null
+target="$H/.claude/skills"
+count=$(find "$target" -mindepth 1 -maxdepth 1 -type l | wc -l)
+[ "$count" -eq "$N" ] || fail "install/uninstall/install: found $count symlinks, expected $N"
+pass "install -> uninstall -> install cycle"
+
+# ---------- Test 8: --help exits 0 ----------
+"$INSTALL" --help >/dev/null
+"$UNINSTALL" --help >/dev/null
+pass "--help exits 0"
+
+# ---------- Test 9: every skill has valid frontmatter ----------
+for s in "${SKILLS[@]}"; do
+  f="$REPO_ROOT/$s/SKILL.md"
+  [ "$(head -n 1 "$f")" = "---" ] || fail "frontmatter: $s/SKILL.md does not start with ---"
+  fm="$(awk 'NR==1{next} /^---$/{exit} {print}' "$f")"
+  echo "$fm" | grep -qx "name: $s" || fail "frontmatter: $s/SKILL.md name does not match its folder"
+  desc="$(echo "$fm" | sed -n 's/^description: //p')"
+  [ -n "$desc" ] || fail "frontmatter: $s/SKILL.md has no description"
+  [ "${#desc}" -le 1024 ] || fail "frontmatter: $s/SKILL.md description is ${#desc} chars, over 1024"
+done
+pass "every skill has a name matching its folder and a description of at most 1024 chars"
+
+echo
+echo "All tests passed (${N} skills: ${SKILLS[*]})."
