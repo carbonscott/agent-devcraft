@@ -31,21 +31,27 @@ the diff can't tell a reviewer whether the change works, prove it.
    the change were wrong. Include a real-world case whenever one exists.
 3. **Run it end to end** through the real entry points (the CLI, the server, the API).
    Unit tests with mocks are welcome, but they are not end-to-end proof.
-4. **Fit the proof to the kind of change:**
+4. **Fit the proof to what the change claims.** A PR often claims more than one of these;
+   prove each claim it makes.
 
-   | Change | Proof |
+   | The change claims to | Proof |
    |---|---|
-   | Bug fix | The issue's own reproduction fails at the base commit and passes at the head. Put base and head in two `git worktree`s and run both. |
-   | Feature | The need met: the user's actual workflow, running. |
-   | Performance | The same measurement before and after, on the same hardware, repeated, with the spread and the command to rerun it. |
-   | Docs that describe a procedure | The procedure run exactly as written, from the reader's starting point (for example a package install, not a checkout). |
-   | GPU or backend | Sanitizer output, job IDs, hardware and driver versions, and failures triggered on purpose (limits, permissions, killed processes) with the result of each. |
+   | Fix a bug | The issue's own reproduction fails at the base commit and passes at the head. Put base and head in two `git worktree`s and run both. |
+   | Add a feature | The need met: the user's actual workflow, running. |
+   | Make something faster or smaller | The same measurement before and after, in the same environment, repeated, with the spread and the command to rerun it. |
+   | Change nothing visible (a refactor) | The same inputs give the same outputs at base and head, compared directly. |
+   | Handle failures | Each failure triggered on purpose (bad input, a missing permission, a resource limit, a lost connection), with what the user sees and whether it recovers. |
+   | Be correct in ways the output doesn't show | A tool that makes it visible, such as a sanitizer, a race detector, or a comparison against a trusted reference, run on the inputs the change touches. |
+   | Document a procedure | The procedure run exactly as written, from the reader's starting point (for example a package install, not a checkout). |
+
+   Record the environment with every result: versions, hardware where it matters, and the
+   ID of any job or run, so the result can be traced and repeated.
 
 5. **Capture it:** the commands, their output, the commit SHA and the date. Anything
    visual (rendered docs, plots, UIs, notebooks) gets a screenshot or a recording. For
    command-line work the captured log is the screenshot; a terminal recording can help.
-6. **Say what you could not run, and why:** a server you can't reach, rare hardware,
-   production scale. The list of gaps is part of the proof.
+6. **Say what you could not run, and why:** an environment you can't reach, special
+   hardware, production data or scale. The list of gaps is part of the proof.
 7. **Check your claims against CI.** Every check you say passes must pass in CI too. When
    CI disagrees with your local run, CI wins: fix it before asking for review.
 8. **Keep the proof out of the diff.** Put it in the PR description, or link it from
@@ -89,7 +95,7 @@ You are assessing whether the PR shows proof. Don't run the change yourself unle
 3. **Note contradictions:** a check the body says passes but CI fails, merge conflicts,
    claims with no output behind them.
 4. **Draft the request,** with a matrix tailored to this PR (the issue's reproduction for
-   a bug fix, the real datasets, the install modes):
+   a bug fix, real inputs, the ways the code is installed or run):
 
    ```markdown
    🤖 **Agent comment.** Written by an AI agent; read it yourself or hand it to your own agent.
@@ -118,7 +124,7 @@ not issues:
 ## Proof it works (required if an AI agent wrote most of this PR)
 Show the change working, so a reviewer can check the result instead of rebuilding it from the diff.
 - Run it end to end, in more than one way: a matrix of the cases it touches.
-- Show the result in whatever form fits: a log, timings, sanitizer output, a screenshot or a recording.
+- Show the result in whatever form fits: a log, timings, tool output, a screenshot or a recording.
   Keep the commit hash and date in it, and paste the text output so a reviewer can rerun it.
 - Bug fix: the reproduction from the issue fails before the change and passes after it.
 - Performance: the same measurement before and after, on the same hardware, with the command to rerun it.
