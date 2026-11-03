@@ -42,12 +42,12 @@ is not.
 For every feature request and proposal: **what problem does this solve that the current
 code can't, and for whom, today?**
 
-- **A standard alone is not a problem.** SciCat, Croissant, schema.org, FAIR or "best
-  practice" become a reason only when someone downstream needs that format: a named
-  dataset, user, platform or deadline. Issues that start from a target schema instead of
-  from something that went wrong are wishlists until someone shows up who needs them.
+- **A standard alone is not a problem.** A spec, a format other tools use, or "best
+  practice" becomes a reason only when someone needs it: a named user, system, platform
+  or deadline. Issues that start from a spec instead of from something that went wrong
+  are wishlists until someone shows up who needs them.
 - **Look for the cheap workaround.** If the system already does most of it (for example,
-  it keeps free-form metadata keys as written), the request must show where that falls
+  a free-form field already holds the value), the request must show where that falls
   short. A request with no real user behind it and a cheap workaround is weak.
 - **Ask what breaks if we never do this.** "Nothing breaks, but we'd match standard X"
   means it is an idea, and it stays parked.
@@ -74,8 +74,8 @@ Recognise these patterns, because they recur:
   issue's "decision needed" on its own.
 - **A dependency web of proposals:** A needs B, C and D, none accepted. Park the web, not
   one node of it.
-- **A self-parked issue:** if one issue in a batch parks itself for want of a real target,
-  that reason usually covers the rest of the batch.
+- **A shared blocker:** if one issue in a batch says it should wait for something (a real
+  user, a target system), check whether that reason covers the rest of the batch.
 
 ## 6. Draft comments that close the gap
 
@@ -86,8 +86,8 @@ readers can choose to read it themselves or hand it to their own agent:
 🤖 **Agent comment.** Written by an AI agent; read it yourself or hand it to your own agent.
 ```
 
-- **Ask specific questions.** "Which dataset still needs millions of entities, and what
-  registration time is acceptable?" works. "Can you clarify?" does not.
+- **Ask specific questions.** "Who hit this, on which version, and what did they do
+  instead?" works. "Can you clarify?" does not.
 - **Lead with the problem question,** and leave out solution-level advice (merging issues,
   field names, ordering) on proposals nobody has accepted. Engaging with design details
   reads as acceptance.
